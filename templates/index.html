@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+    <title>MNIST Digit Recognition</title>
+
+    <style>
+        .grid {
+            background: -webkit-linear-gradient(top, transparent 39px, gray 40px), -webkit-linear-gradient(left, transparent 39px, gray 40px);
+            background: -moz-linear-gradient(top, transparent 39px, gray 40px), -moz-linear-gradient(left, transparent 39px, gray 40px);
+            background: -o-linear-gradient(top, transparent 39px, gray 40px), -o-linear-gradient(left, transparent 39px, gray 40px);
+            background: -ms-linear-gradient(top, transparent 39px, gray 40px), -ms-linear-gradient(left, transparent 39px, gray 40px);
+            background: linear-gradient(top, transparent 39px, gray 40px), linear-gradient(left, transparent 39px, gray 40px);
+            -webkit-background-size: 40px 40px;
+            -moz-background-size: 40px 40px;
+            background-size: 40px 40px;
+        }
+
+        #canvas {
+            width: 100%;
+        }
+    </style>
+
+    <link rel="stylesheet" href="https://cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap.min.css">
+</head>
+<body id="app">
+<div class="jumbotron">
+    <div class="container">
+        <h1>MNIST Digit Recognition</h1>
+        <p>
+            The MNIST database is a large database of handwritten digits that is commonly used for training various image processing systems.
+            MNIST ("Modified National Institute of Standards and Technology") is the de facto “Hello World” dataset of computer vision.
+            It is a dataset of 60,000 small square 28×28 pixel grayscale images of handwritten single digits between 0 and 9.
+            In this Mini-Project we will implement an MNIST Digit Recognition Web Application using Flask and Tensorflow which can 
+            recognize digits from 0-9. In this Project, we will implement various Intelligent Algorithms like Convolutional Neural Network, Softmax
+            Regression, Rectified Linear Unit and Sigmoid Activation Function to gently predict the hand-drawn numbers.
+        </p>
+    </div>
+</div>
+
+<div class="container">
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <div class="col-xs-12 col-sm-12 col-md-6 col-lg-6">
+                <div class="panel panel-default">
+                    <canvas id="canvas" class="grid"></canvas>
+                </div>
+            </div>
+            <div class="col-xs-12 col-sm-12 col-md-6 col-lg-6">
+                <button id="predict-btn" type="button" class="btn btn-primary">Predict</button>
+                <button id="reset-btn" type="button" class="btn btn-info">Reset</button>
+
+                <div id="predicts" class="panel-body"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdn.bootcss.com/underscore.js/1.8.3/underscore-min.js"></script>
+
+<script>
+    var predict = _.template(
+        '<div class="media" style="margin: 10px auto;">' +
+        '<div class="media-left">' +
+        '<h1 style="margin: 0;"><%= num %></h1>' +
+        '</div>' +
+        '<div class="media-body" style="vertical-align: middle;">' +
+        '<h4 class="media-heading"><%= name %></h4>' +
+        'for <%= chance %>% chance' +
+        '</div>' +
+        '</div>'
+    );
+
+    var mousePressed = false;
+    var lastX, lastY;
+    var canvas, ctx;
+
+    function InitCanvas() {
+        var canvas = $('#canvas');
+        ctx = canvas[0].getContext("2d");
+        ctx.canvas.width = canvas.width();
+        ctx.canvas.height = canvas.width();
+        canvas.height(canvas.width());
+
+        $('#canvas').on('mousedown touchstart', function (e) {
+            mousePressed = true;
+            e.preventDefault();
+            Draw((e.pageX || e.touches[0].pageX) - canvas.offset().left, (e.pageY || e.touches[0].pageY) - canvas.offset().top, false);
+        });
+        $('#canvas').on('mousemove touchmove', function (e) {
+            e.preventDefault();
+            if (mousePressed) {
+                Draw((e.pageX || e.touches[0].pageX) - canvas.offset().left, (e.pageY || e.touches[0].pageY) - canvas.offset().top, true);
+            }
+        });
+        $('#canvas').on('mouseup touchend', function (e) {
+            e.preventDefault();
+            mousePressed = false;
+        });
+        $('#canvas').on('mouseleave touchcancel', function (e) {
+            e.preventDefault();
+            mousePressed = false;
+        });
+        $('#reset-btn').click(function () {
+            clearArea();
+            $("#predicts").empty();
+        });
+        $('#predict-btn').click(function () {
+            var img = ctx.canvas.toDataURL("image/png");
+            $.ajax({
+                type: "POST",
+                url: "/predict",
+                data: {
+                    img: img
+                }
+            }).done(function (predicts) {
+                $('#predicts').empty();
+
+                for (var name in predicts) {
+                    var chances = predicts[name];
+                    var chance = Math.max(...chances);
+                    var num = chances.indexOf(chance);
+                    chance = (chance * 100).toFixed(2);
+                    var p = {name, img, chance, num};
+
+                    $('#predicts').append(predict(p));
+                }
+            });
+        })
+    }
+
+    function Draw(x, y, isDown) {
+        if (isDown) {
+            ctx.beginPath();
+            ctx.strokeStyle = 'blue';
+            ctx.lineWidth = 50;
+            ctx.lineJoin = "round";
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(x, y);
+            ctx.closePath();
+            ctx.stroke();
+        }
+        lastX = x;
+        lastY = y;
+    }
+
+    function clearArea() {
+        // Use the identity matrix while clearing the canvas
+//        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    }
+
+    InitCanvas();
+</script>
+<footer class="container text-center footer">
+    <p class="footerp" style="margin-top:30px; color:black; font-size:15px">Made with <span style="color:red"> &#9829 </span> by <a href="https://www.github.com/harshcasper" style="text-decoration:none" target="_blank">Harsh Bardhan Mishra</a></p>
+  </footer>
+</body>
+
+</html>
